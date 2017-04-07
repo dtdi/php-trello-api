@@ -28,6 +28,8 @@ class Card extends AbstractObject implements CardInterface
 
     protected $newChecklists = array();
     protected $newComments = array();
+    protected $newLabels = array();
+    protected $labelsToBeRemoved = array();
     protected $commentsToBeRemoved = array();
 
     /**
@@ -753,10 +755,10 @@ class Card extends AbstractObject implements CardInterface
 
         foreach ($this->data['labels'] as $key => $label) {
             if ($label['color'] === $color) {
+                $this->labelsToBeRemoved[] = $color;
                 unset($this->data['labels'][$key]);
             }
         }
-
         return $this;
     }
 
@@ -823,6 +825,8 @@ class Card extends AbstractObject implements CardInterface
             $checklist->save();
             $this->addChecklist($checklist);
         }
+
+        $this->newLabels = $this->getLabelColors();
     }
 
     /**
@@ -830,6 +834,21 @@ class Card extends AbstractObject implements CardInterface
      */
     protected function postSave()
     {
+        $labels = array();
+        foreach ($this->newLabels as $key) {
+            if(!$this->hasLabel($key['color'])) {
+                $labels[] = $key['color'];
+            }
+        }
+        if(count($labels)) {
+            $this->api->labels()->set($this->id, $labels);
+        }
+
+        foreach ($this->labelsToBeRemoved as $key) {
+            $this->api->labels()->remove($this->id, $key);
+            unset($this->labelsToBeRemoved[$key]);
+        }
+
         foreach ($this->newComments as $key => $text) {
             $this->api->actions()->addComment($this->id, $text);
             unset($this->newComments[$key]);
