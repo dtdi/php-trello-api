@@ -701,6 +701,9 @@ class Card extends AbstractObject implements CardInterface
      */
     public function getLabelColors()
     {
+        if(!isset($this->data['labels'])){
+            $this->data['labels'] = array();
+        }
         return $this->data['labels'];
     }
 

@@ -32,10 +32,10 @@ class Labels extends AbstractApi
             if (!in_array($label, array('all', 'green', 'yellow', 'orange', 'red', 'purple', 'blue', 'sky', 'lime', 'pink', 'black'))) {
                 throw new InvalidArgumentException(sprintf('Label "%s" does not exist.', $label));
             }
+            $ret = $this->post($this->getPath($id), array('value' => $label));
         }
+        return $ret;
 
-        $labels = implode(',', $labels);
-        return $this->post($this->getPath($id), array('value' => $labels));
     }
 
     /**
