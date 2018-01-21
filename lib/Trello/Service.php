@@ -174,9 +174,6 @@ class Service extends Manager
                 break;
             case Events::CARD_COMMENT:
             case Events::CARD_COPY_COMMENT:
-                $event = new Event\CardCommentEvent();
-                $event->setCard($this->getCard($data['card']['id']));
-                $event->setComment($data['text']);
                 break;
             case Events::CARD_FROM_CHECKITEM:
                 $event = new Event\CardFromCheckItemEvent();

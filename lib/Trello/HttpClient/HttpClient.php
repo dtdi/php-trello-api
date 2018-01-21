@@ -2,10 +2,13 @@
 
 namespace Trello\HttpClient;
 
-use Guzzle\Http\Client as GuzzleClient;
-use Guzzle\Http\ClientInterface;
-use Guzzle\Http\Message\Request;
-use Guzzle\Http\Message\Response;
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
+
+use GuzzleHttp\Psr7\Uri;
+use Trello\Client;
 use Trello\Exception\ErrorException;
 use Trello\Exception\RuntimeException;
 use Trello\HttpClient\Listener\AuthListener;
@@ -15,7 +18,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 class HttpClient implements HttpClientInterface
 {
     protected $options = array(
-        'base_url'    => 'https://api.trello.com/',
+        'base_uri'    => 'https://api.trello.com/',
         'user_agent'  => 'php-trello-api (http://github.com/cdaguerre/php-trello-api)',
         'timeout'     => 10,
         'api_version' => 1,
@@ -29,7 +32,12 @@ class HttpClient implements HttpClientInterface
     protected $headers = array();
 
     private $lastResponse;
+    private $auth;
     private $lastRequest;
+
+    private $tokenOrLogin;
+    private $password;
+    private $method;
 
     /**
      * @param array           $options
@@ -38,10 +46,10 @@ class HttpClient implements HttpClientInterface
     public function __construct(array $options = array(), ClientInterface $client = null)
     {
         $this->options = array_merge($this->options, $options);
-        $client = $client ?: new GuzzleClient($this->options['base_url'], $this->options);
+        $client = $client ?: new GuzzleClient($this->options);
         $this->client  = $client;
 
-        $this->addListener('request.error', array(new ErrorListener($this->options), 'onRequestError'));
+        //$this->addListener('request.error', array(new ErrorListener($this->options), 'onRequestError'));
         $this->clearHeaders();
     }
 
@@ -77,6 +85,7 @@ class HttpClient implements HttpClientInterface
      */
     public function addListener($eventName, $listener)
     {
+        $this->client->
         $this->client->getEventDispatcher()->addListener($eventName, $listener);
     }
 
@@ -143,7 +152,6 @@ class HttpClient implements HttpClientInterface
     public function request($path, $body = null, $httpMethod = 'GET', array $headers = array(), array $options = array())
     {
         $request = $this->createRequest($httpMethod, $path, $body, $headers, $options);
-
         try {
             $response = $this->client->send($request);
         } catch (\LogicException $e) {
@@ -163,9 +171,9 @@ class HttpClient implements HttpClientInterface
      */
     public function authenticate($tokenOrLogin, $password = null, $method)
     {
-        $this->addListener('request.before_send', array(
-            new AuthListener($tokenOrLogin, $password, $method), 'onRequestBeforeSend',
-        ));
+        $this->tokenOrLogin = $tokenOrLogin;
+        $this->password = $password;
+        $this->method = $method;
     }
 
     /**
@@ -191,18 +199,54 @@ class HttpClient implements HttpClientInterface
     protected function createRequest($httpMethod, $path, $body = null, array $headers = array(), array $options = array())
     {
         $path = $this->options['api_version'].'/'.$path;
-
+        if(!$body)
+            $body = null;
         if ($httpMethod === 'GET' && $body) {
             $path .= (false === strpos($path, '?') ? '?' : '&');
             $path .= utf8_encode(http_build_query($body, '', '&'));
+            $body = null;
         }
 
-        return $this->client->createRequest(
+        $request = new Request(
             $httpMethod,
             $path,
             array_merge($this->headers, $headers),
             $body,
-            $options
-        );
+            array_merge($options));
+        $request = $this->makeAuth($request);
+        return $request;
+    }
+
+    protected function makeAuth(Request $request) {
+        // Skip by default
+        if (null === $this->method) {
+            return $request;
+        }
+
+        switch ($this->method) {
+            case Client::AUTH_URL_CLIENT_ID:
+                $url = $request->getUri();
+
+                $parameters = array(
+                    'key'   => $this->tokenOrLogin,
+                    'token' => $this->password,
+                );
+
+                $url .= (false === strpos($url, '?') ? '?' : '&');
+                $url .= utf8_encode(http_build_query($parameters, '', '&'));
+                return $request = $request->withUri(new Uri($url));
+
+            case Client::AUTH_URL_TOKEN:
+                $url = $request->getUri();
+                $url .= (false === strpos($url, '?') ? '?' : '&');
+                $url .= utf8_encode(http_build_query(
+                    array('token' => $this->tokenOrLogin, 'key' => $this->password),
+                    '',
+                    '&'
+                ));
+                return $request->withUri(new Uri($url));
+            default:
+                throw new RuntimeException(sprintf('%s not yet implemented', $this->method));
+        }
     }
 }
