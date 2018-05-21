@@ -73,7 +73,7 @@ class Items extends AbstractApi
     {
         $this->validateRequiredParameters(array('name', 'state'), $data);
 
-        //$this->remove($id, $itemId);
+        $this->remove($id, $itemId);
         return $this->create($id, $data['name'], $data['state'], $data);
     }
 
