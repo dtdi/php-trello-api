@@ -3,6 +3,7 @@
 namespace Trello\Api\Checklist;
 
 use Trello\Api\AbstractApi;
+use Trello\Model\Checklist;
 
 /**
  * Trello Checklist Items API
@@ -42,16 +43,15 @@ class Items extends AbstractApi
      *
      * @param string $id      Id of the checklist
      * @param string $name    Name of the item
-     * @param bool   $checked Check status
+     * @param string $checked Check status
      * @param array  $data    optional attributes
      *
      * @return array
      */
-    public function create($id, $name, $checked = false, array $data = array())
+    public function create($id, $name, $checked = Checklist::INCOMPLETE, array $data = array())
     {
-        $data['checked'] = $checked;
+        $data['checked'] = $checked === Checklist::COMPLETE;
         $data['name'] = $name;
-
         return $this->post($this->getPath($id), $data);
     }
 
@@ -73,8 +73,7 @@ class Items extends AbstractApi
     {
         $this->validateRequiredParameters(array('name', 'state'), $data);
 
-        $this->remove($id, $itemId);
-
+        //$this->remove($id, $itemId);
         return $this->create($id, $data['name'], $data['state'], $data);
     }
 

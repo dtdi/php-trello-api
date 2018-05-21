@@ -207,6 +207,10 @@ class HttpClient implements HttpClientInterface
             $body = null;
         }
 
+        if(gettype($body) == 'array') {
+            $body = utf8_encode(http_build_query($body, '', '&'));
+        }
+
         $request = new Request(
             $httpMethod,
             $path,

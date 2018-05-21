@@ -12,6 +12,9 @@ class Checklist extends AbstractObject implements ChecklistInterface
 {
     protected $apiName = 'checklist';
 
+    const COMPLETE = 'complete';
+    const INCOMPLETE = 'incomplete';
+
     protected $loadParams = array(
         'fields' => 'all',
         'checkItems' => 'all',
@@ -199,7 +202,7 @@ class Checklist extends AbstractObject implements ChecklistInterface
         if ($this->hasItem($nameOrId)) {
             $key = $this->getItemKey($nameOrId);
 
-            $this->data['checkItems'][$key]['state'] = $checked;
+            $this->data['checkItems'][$key]['state'] = ($checked ? self::COMPLETE : self::INCOMPLETE);
 
             if (isset($position)) {
                 $this->data['checkItems'][$key]['position'] = $position;
@@ -207,7 +210,7 @@ class Checklist extends AbstractObject implements ChecklistInterface
         } else {
             $this->data['checkItems'][] = array(
                 'name'     => $nameOrId,
-                'state'    => $checked,
+                'state'    => ($checked ? self::COMPLETE : self::INCOMPLETE),
                 'position' => $position,
             );
         }
@@ -221,8 +224,7 @@ class Checklist extends AbstractObject implements ChecklistInterface
     public function setItemChecked($nameOrId, $bool)
     {
         $key = $this->getItemKey($nameOrId);
-        $this->data['checkItems'][$key]['state'] = $bool;
-
+        $this->data['checkItems'][$key]['state'] = ($bool ? self::COMPLETE : self::INCOMPLETE);
         return $this;
     }
 
@@ -233,7 +235,7 @@ class Checklist extends AbstractObject implements ChecklistInterface
     {
         $key = $this->getItemKey($nameOrId);
 
-        return $this->data['checkItems'][$key]['state'];
+        return $this->data['checkItems'][$key]['state'] == self::COMPLETE;
     }
 
     /**
@@ -242,7 +244,7 @@ class Checklist extends AbstractObject implements ChecklistInterface
     protected function postRefresh()
     {
         foreach ($this->data['checkItems'] as $key => $item) {
-            $this->data['checkItems'][$key]['state'] = in_array($item['state'], array(true, 'complete', 'true'));
+            $this->data['checkItems'][$key]['state'] = $item['state'];
         }
     }
 
@@ -256,7 +258,6 @@ class Checklist extends AbstractObject implements ChecklistInterface
         if (!$this->id) {
             $this->create();
         }
-
         foreach ($this->itemsToBeRemoved as $itemId) {
             $this->api->items()->remove($this->id, $itemId);
         }
